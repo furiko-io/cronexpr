@@ -61,12 +61,17 @@ func MustParse(cronLine string) *Expression {
 
 /******************************************************************************/
 
-// Parse returns a new Expression pointer. An error is returned if a malformed
+// Parses the given cron expression for the given format.
+func Parse(cronLine string) (*Expression, error) {
+	return ParseForFormat(CronFormatStandard, cronLine)
+}
+
+// ParseForFormat returns a new Expression pointer. An error is returned if a malformed
 // cron expression is supplied.
 // See <https://github.com/gorhill/cronexpr#implementation> for documentation
 // about what is a well-formed cron expression from this library's point of
 // view.
-func Parse(cronLine string) (*Expression, error) {
+func ParseForFormat(format CronFormat, cronLine string) (*Expression, error) {
 
 	// Maybe one of the built-in aliases is being used
 	cron := cronNormalizer.Replace(cronLine)
@@ -81,9 +86,12 @@ func Parse(cronLine string) (*Expression, error) {
 		fieldCount = 7
 	}
 
-	var expr = Expression{}
+	// Initialise format-specific expression
+	expr, err := newFormattedExpression(format)
+	if err != nil {
+		return nil, err
+	}
 	var field = 0
-	var err error
 
 	// second field (optional)
 	if fieldCount == 7 {
@@ -141,7 +149,7 @@ func Parse(cronLine string) (*Expression, error) {
 		expr.yearList = yearDescriptor.defaultList
 	}
 
-	return &expr, nil
+	return expr.Expression, nil
 }
 
 /******************************************************************************/
