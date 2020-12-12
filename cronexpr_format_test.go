@@ -5,6 +5,43 @@ import (
 	"time"
 )
 
+func TestFormattedExpressionsParsing(t *testing.T) {
+	tests := []struct {
+		name    string
+		format  CronFormat
+		expr    string
+		wantErr bool
+	}{
+		{
+			name:   "parsing day of week with CronFormatStandard",
+			expr:   "0 0 11 ? * 2 *",
+			format: CronFormatStandard,
+		},
+		{
+			name:   "parsing day of week with CronFormatQuartz",
+			expr:   "0 0 11 ? * 2 *",
+			format: CronFormatQuartz,
+		},
+		{
+			name:    "invalid day of week in CronFormatQuartz",
+			expr:    "0 0 11 ? * 0 *",
+			format:  CronFormatQuartz,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseForFormat(tt.format, tt.expr)
+			if err != nil && !tt.wantErr {
+				t.Errorf(`Parse("%s") returned "%s"`, tt.expr, err.Error())
+			} else if err == nil && tt.wantErr {
+				t.Errorf(`Parse("%s") did not return error`, tt.expr)
+			}
+		})
+	}
+}
+
 func TestFormattedExpressions(t *testing.T) {
 	tests := []struct {
 		name   string

@@ -1,5 +1,9 @@
 package cronexpr
 
+import (
+	"fmt"
+)
+
 type quartzExpression struct {
 	*Expression
 }
@@ -18,19 +22,36 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 	}
 
 	for _, directive := range directives {
-		// Remap directives
-		directive.first = expr.remapDow(directive.first)
-		directive.last = expr.remapDow(directive.last)
-
-		// Populate from directives
+		var ok bool
+		sdirective := s[directive.sbeg:directive.send]
 		switch directive.kind {
 		case none:
-			// not supported
+			return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
 		case one:
+			directive.first, ok = expr.remapDow(directive.first)
+			if !ok {
+				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
+			}
 			populateOne(expr.daysOfWeek, directive.first)
 		case span:
+			directive.first, ok = expr.remapDow(directive.first)
+			if !ok {
+				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
+			}
+			directive.last, ok = expr.remapDow(directive.last)
+			if !ok {
+				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
+			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 		case all:
+			directive.first, ok = expr.remapDow(directive.first)
+			if !ok {
+				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
+			}
+			directive.last, ok = expr.remapDow(directive.last)
+			if !ok {
+				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
+			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 			expr.daysOfWeekRestricted = false
 		}
@@ -39,6 +60,11 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 	return nil
 }
 
-func (expr *quartzExpression) remapDow(x int) int {
-	return ((x + 7) - 1) % 7
+func (expr *quartzExpression) remapDow(x int) (int, bool) {
+	// only support 1-7
+	if x >= 1 && x <= 7 {
+		return ((x + 7) - 1) % 7, true
+	}
+
+	return 0, false
 }
