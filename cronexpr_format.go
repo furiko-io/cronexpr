@@ -9,7 +9,8 @@ type CronFormat string
 
 const (
 	// The standard Cron format, see https://en.wikipedia.org/wiki/Cron#CRON_expression.
-	// Uses the default implementation from https://github.com/gorhill/cronexpr.
+	// Uses the default implementation from https://github.com/gorhill/cronexpr, with some additional
+	// relaxed rules.
 	CronFormatStandard CronFormat = "standard"
 
 	// Uses the Quartz scheduler format.

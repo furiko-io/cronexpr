@@ -181,7 +181,7 @@ var (
 /******************************************************************************/
 
 var (
-	layoutWildcard            = `^\*$|^\?$`
+	layoutWildcard            = `^\*{1,2}$|^\?{1,2}$`
 	layoutValue               = `^(%value%)$`
 	layoutRange               = `^(%value%)-(%value%)$`
 	layoutJustInterval        = `^\/(\d+)$`
