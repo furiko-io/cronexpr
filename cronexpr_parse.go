@@ -184,6 +184,7 @@ var (
 	layoutWildcard            = `^\*$|^\?$`
 	layoutValue               = `^(%value%)$`
 	layoutRange               = `^(%value%)-(%value%)$`
+	layoutJustInterval        = `^\/(\d+)$`
 	layoutWildcardAndInterval = `^\*/(\d+)$`
 	layoutValueAndInterval    = `^(%value%)/(\d+)$`
 	layoutRangeAndInterval    = `^(%value%)-(%value%)/(\d+)$`
@@ -443,6 +444,19 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 		}
 		// `*/2`
 		pairs = makeLayoutRegexp(layoutWildcardAndInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		if len(pairs) > 0 {
+			directive.kind = span
+			directive.first = desc.min
+			directive.last = desc.max
+			directive.step = atoi(snormal[pairs[2]:pairs[3]])
+			if directive.step < 1 || directive.step > desc.max {
+				return nil, fmt.Errorf("invalid interval %s", snormal)
+			}
+			directives = append(directives, &directive)
+			continue
+		}
+		// `/2`
+		pairs = makeLayoutRegexp(layoutJustInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
 		if len(pairs) > 0 {
 			directive.kind = span
 			directive.first = desc.min

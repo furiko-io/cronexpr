@@ -28,6 +28,27 @@ func TestFormattedExpressionsParsing(t *testing.T) {
 			format:  CronFormatQuartz,
 			wantErr: true,
 		},
+		{
+			name:   "parsing day of week span with CronFormatQuartz",
+			expr:   "0 0 11 ? * 2-3 *",
+			format: CronFormatQuartz,
+		},
+		{
+			name:   "parsing any day of week with CronFormatQuartz",
+			expr:   "0 0 11 ? * * *",
+			format: CronFormatQuartz,
+		},
+		{
+			name:    "parsing invalid day of week span with CronFormatQuartz",
+			expr:    "0 0 11 ? * 1- *",
+			format:  CronFormatQuartz,
+			wantErr: true,
+		},
+		{
+			name:   "parsing /X format",
+			expr:   "0 /5 * ? * * *",
+			format: CronFormatQuartz,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -63,6 +84,22 @@ func TestFormattedExpressions(t *testing.T) {
 			format: CronFormatQuartz,
 			times: []crontimes{
 				{"2020-12-12 00:00:00", "2020-12-14 11:00:00"},
+			},
+		},
+		{
+			name:   "parsing day of week span with CronFormatQuartz",
+			expr:   "0 0 11 ? * 3-6 *", // tuesday to friday
+			format: CronFormatQuartz,
+			times: []crontimes{
+				{"2020-12-12 00:00:00", "2020-12-15 11:00:00"},
+			},
+		},
+		{
+			name:   "parsing any day of week with CronFormatQuartz",
+			expr:   "0 0 11 ? * * *",
+			format: CronFormatQuartz,
+			times: []crontimes{
+				{"2020-12-12 00:00:00", "2020-12-12 11:00:00"},
 			},
 		},
 	}

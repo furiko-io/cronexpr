@@ -46,14 +46,6 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 		case all:
-			directive.first, ok = expr.remapDow(directive.first)
-			if !ok {
-				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
-			}
-			directive.last, ok = expr.remapDow(directive.last)
-			if !ok {
-				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
-			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 			expr.daysOfWeekRestricted = false
 		}
