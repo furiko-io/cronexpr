@@ -4,6 +4,29 @@ import (
 	"fmt"
 )
 
+var (
+	quartzDowTokens = map[string]int{
+		`1`: 0, `sun`: 0, `sunday`: 0,
+		`2`: 1, `mon`: 1, `monday`: 1,
+		`3`: 2, `tue`: 2, `tuesday`: 2,
+		`4`: 3, `wed`: 3, `wednesday`: 3,
+		`5`: 4, `thu`: 4, `thursday`: 4,
+		`6`: 5, `fri`: 5, `friday`: 5,
+		`7`: 6, `sat`: 6, `saturday`: 6,
+	}
+
+	quartzDowDescriptor = fieldDescriptor{
+		name:         "day-of-week",
+		min:          0,
+		max:          6,
+		defaultList:  genericDefaultList[0:7],
+		valuePattern: `0?[1-7]|sun|mon|tue|wed|thu|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday`,
+		atoi: func(s string) int {
+			return quartzDowTokens[s]
+		},
+	}
+)
+
 // quartzExpression implements custom parsing for the Quartz scheduler format.
 type quartzExpression struct {
 	*Expression
@@ -17,33 +40,21 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 	expr.lastWeekDaysOfWeek = make(map[int]bool)
 	expr.specificWeekDaysOfWeek = make(map[int]bool)
 
-	// Perform initial parse
-	directives, err := genericFieldParse(s, dowDescriptor)
+	// Use custom descriptor
+	directives, err := genericFieldParse(s, quartzDowDescriptor)
 	if err != nil {
 		return err
 	}
 
 	for _, directive := range directives {
-		var ok bool
 		sdirective := s[directive.sbeg:directive.send]
 		switch directive.kind {
 		case none:
+			// not implemented.
 			return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
 		case one:
-			directive.first, ok = expr.remapDow(directive.first)
-			if !ok {
-				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
-			}
 			populateOne(expr.daysOfWeek, directive.first)
 		case span:
-			directive.first, ok = expr.remapDow(directive.first)
-			if !ok {
-				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
-			}
-			directive.last, ok = expr.remapDow(directive.last)
-			if !ok {
-				return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
-			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 		case all:
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
@@ -52,13 +63,4 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 	}
 
 	return nil
-}
-
-func (expr *quartzExpression) remapDow(x int) (int, bool) {
-	// only support 1-7
-	if x >= 1 && x <= 7 {
-		return ((x + 7) - 1) % 7, true
-	}
-
-	return 0, false
 }

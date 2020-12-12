@@ -113,7 +113,15 @@ func TestFormattedExpressions(t *testing.T) {
 			},
 		},
 		{
-			name:   "parsing sunday with CronFormatQuartz",
+			name:   "parsing sunday value with CronFormatQuartz",
+			expr:   "0 0 11 ? * 1 *",
+			format: CronFormatQuartz,
+			times: []crontimes{
+				{"2020-12-12 00:00:00", "2020-12-13 11:00:00"},
+			},
+		},
+		{
+			name:   "parsing sunday literal with CronFormatQuartz",
 			expr:   "0 0 11 ? * SUN *",
 			format: CronFormatQuartz,
 			times: []crontimes{
