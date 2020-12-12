@@ -46,12 +46,12 @@ type Expression struct {
 
 /******************************************************************************/
 
-// MustParse returns a new Expression pointer. It expects a well-formed cron
+// MustParseForFormat returns a new Expression pointer. It expects a well-formed cron
 // expression. If a malformed cron expression is supplied, it will `panic`.
 // See <https://github.com/gorhill/cronexpr#implementation> for documentation
 // about what is a well-formed cron expression from this library's point of
 // view.
-func MustParse(cronLine string) *Expression {
+func MustParseForFormat(format CronFormat, cronLine string) *Expression {
 	expr, err := Parse(cronLine)
 	if err != nil {
 		panic(err)
@@ -59,12 +59,12 @@ func MustParse(cronLine string) *Expression {
 	return expr
 }
 
-/******************************************************************************/
-
-// Parses the given cron expression for the given format.
-func Parse(cronLine string) (*Expression, error) {
-	return ParseForFormat(CronFormatStandard, cronLine)
+// MustParse uses MustParseForFormat with CronFormatStandard.
+func MustParse(cronLine string) *Expression {
+	return MustParseForFormat(CronFormatStandard, cronLine)
 }
+
+/******************************************************************************/
 
 // ParseForFormat returns a new Expression pointer. An error is returned if a malformed
 // cron expression is supplied.
@@ -150,6 +150,11 @@ func ParseForFormat(format CronFormat, cronLine string) (*Expression, error) {
 	}
 
 	return expr.Expression, nil
+}
+
+// Parse uses ParseForFormat with CronFormatStandard.
+func Parse(cronLine string) (*Expression, error) {
+	return ParseForFormat(CronFormatStandard, cronLine)
 }
 
 /******************************************************************************/

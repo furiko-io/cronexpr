@@ -12,8 +12,7 @@ const (
 	// Uses the default implementation from https://github.com/gorhill/cronexpr.
 	CronFormatStandard CronFormat = "standard"
 
-	// Slight alteration to CronFormatStandard.
-	// Day of week uses 1-7 for SUN-SAT, instead of 0-6 on standard implementations.
+	// Uses the Quartz scheduler format.
 	// See http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html#format.
 	CronFormatQuartz CronFormat = "quartz"
 )

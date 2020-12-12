@@ -4,11 +4,13 @@ import (
 	"fmt"
 )
 
+// quartzExpression implements custom parsing for the Quartz scheduler format.
 type quartzExpression struct {
 	*Expression
 }
 
 // dowFieldHandler overrides the default day of week parsing.
+// Day of week uses 1-7 for SUN-SAT, instead of 0-6 on standard implementations.
 func (expr *quartzExpression) dowFieldHandler(s string) error {
 	expr.daysOfWeekRestricted = true
 	expr.daysOfWeek = make(map[int]bool)
