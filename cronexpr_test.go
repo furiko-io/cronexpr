@@ -795,6 +795,273 @@ func TestNext_DaylightSaving_Property_Brazil(t *testing.T) {
 	}
 }
 
+func TestNext_DaylightSaving_AdditionalTests(t *testing.T) {
+	var (
+		locationSaoPaulo, _ = time.LoadLocation("America/Sao_Paulo")
+		locationNewYork, _  = time.LoadLocation("America/New_York")
+		locationSantiago, _ = time.LoadLocation("America/Santiago")
+	)
+
+	type crontest struct {
+		name   string
+		expr   string
+		layout string
+		times  []crontimes
+		loc    *time.Location
+	}
+	crontests := []crontest{
+		{
+			name:   "Daylight Savings changeover for America/Sao Paulo, run hourly",
+			expr:   "0 * ? * *",
+			layout: time.RFC3339,
+			loc:    locationSaoPaulo,
+			times: []crontimes{
+				// Move back 1 hour on Sunday, 18 February, 00:00 from UTC-2 to UTC-3
+				{"2018-02-17T22:12:00-02:00", "2018-02-17T23:00:00-02:00"},
+				{"2018-02-17T23:12:00-02:00", "2018-02-17T23:00:00-03:00"}, // should still run here
+				{"2018-02-17T23:12:00-03:00", "2018-02-18T00:00:00-03:00"},
+				{"2018-02-18T00:12:00-03:00", "2018-02-18T01:00:00-03:00"},
+				// Move forward 1 hour on Sunday, 4 November, 00:00 from UTC-3 to UTC-2
+				{"2018-11-03T22:12:00-03:00", "2018-11-03T23:00:00-03:00"},
+				{"2018-11-03T23:12:00-03:00", "2018-11-04T01:00:00-02:00"},
+				{"2018-11-04T01:12:00-02:00", "2018-11-04T02:00:00-02:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/Sao Paulo, run hourly with minute/second offset",
+			expr:   "50 10 * ? * * *",
+			layout: time.RFC3339,
+			loc:    locationSaoPaulo,
+			times: []crontimes{
+				// Move back 1 hour on Sunday, 18 February 2018, 00:00 from UTC-2 to UTC-3
+				{"2018-02-17T22:12:00-02:00", "2018-02-17T23:10:50-02:00"},
+				{"2018-02-17T23:12:00-02:00", "2018-02-17T23:10:50-03:00"}, // should still run here
+				{"2018-02-17T23:59:59-02:00", "2018-02-17T23:10:50-03:00"},
+				{"2018-02-17T23:10:50-03:00", "2018-02-18T00:10:50-03:00"},
+				{"2018-02-17T23:12:00-03:00", "2018-02-18T00:10:50-03:00"},
+				{"2018-02-18T00:12:00-03:00", "2018-02-18T01:10:50-03:00"},
+				// Move forward 1 hour on Sunday, 4 November 2018, 00:00 from UTC-3 to UTC-2
+				{"2018-11-03T22:12:00-03:00", "2018-11-03T23:10:50-03:00"},
+				{"2018-11-03T23:12:00-03:00", "2018-11-04T01:10:50-02:00"},
+				{"2018-11-03T23:59:59-03:00", "2018-11-04T01:10:50-02:00"},
+				{"2018-11-04T01:10:50-02:00", "2018-11-04T02:10:50-02:00"},
+				{"2018-11-04T01:12:00-02:00", "2018-11-04T02:10:50-02:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/Sao Paulo, run every 15 mins with minute offset",
+			expr:   "0 10/15 * ? * * *",
+			layout: time.RFC3339,
+			loc:    locationSaoPaulo,
+			times: []crontimes{
+				// Move back 1 hour on Sunday, 18 February 2018, 00:00 from UTC-2 to UTC-3
+				{"2018-02-17T23:00:00-02:00", "2018-02-17T23:10:00-02:00"},
+				{"2018-02-17T23:10:00-02:00", "2018-02-17T23:25:00-02:00"},
+				{"2018-02-17T23:25:00-02:00", "2018-02-17T23:40:00-02:00"},
+				{"2018-02-17T23:40:00-02:00", "2018-02-17T23:55:00-02:00"},
+				{"2018-02-17T23:55:00-02:00", "2018-02-17T23:10:00-03:00"},
+				{"2018-02-17T23:10:00-03:00", "2018-02-17T23:25:00-03:00"},
+				{"2018-02-17T23:55:00-03:00", "2018-02-18T00:10:00-03:00"},
+				{"2018-02-18T00:55:00-03:00", "2018-02-18T01:10:00-03:00"},
+				// Move forward 1 hour on Sunday, 4 November 2018, 00:00 from UTC-3 to UTC-2
+				{"2018-11-03T23:00:00-03:00", "2018-11-03T23:10:00-03:00"},
+				{"2018-11-03T23:10:00-03:00", "2018-11-03T23:25:00-03:00"},
+				{"2018-11-03T23:25:00-03:00", "2018-11-03T23:40:00-03:00"},
+				{"2018-11-03T23:40:00-03:00", "2018-11-03T23:55:00-03:00"},
+				{"2018-11-03T23:55:00-03:00", "2018-11-04T01:10:00-02:00"},
+				{"2018-11-04T01:10:00-02:00", "2018-11-04T01:25:00-02:00"},
+				{"2018-11-04T01:55:00-02:00", "2018-11-04T02:10:00-02:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/Sao Paulo, run every 15 sec",
+			expr:   "0/15 10 * ? * * *",
+			layout: time.RFC3339,
+			loc:    locationSaoPaulo,
+			times: []crontimes{
+				// Move back 1 hour on Sunday, 18 February 2018, 00:00 from UTC-2 to UTC-3
+				{"2018-02-17T23:00:00-02:00", "2018-02-17T23:10:00-02:00"},
+				{"2018-02-17T23:10:00-02:00", "2018-02-17T23:10:15-02:00"},
+				{"2018-02-17T23:10:15-02:00", "2018-02-17T23:10:30-02:00"},
+				{"2018-02-17T23:10:30-02:00", "2018-02-17T23:10:45-02:00"},
+				{"2018-02-17T23:10:45-02:00", "2018-02-17T23:10:00-03:00"},
+				{"2018-02-17T23:10:45-03:00", "2018-02-18T00:10:00-03:00"},
+				{"2018-02-18T00:10:45-03:00", "2018-02-18T01:10:00-03:00"},
+				// Move forward 1 hour on Sunday, 4 November 2018, 00:00 from UTC-3 to UTC-2
+				{"2018-11-03T23:00:00-03:00", "2018-11-03T23:10:00-03:00"},
+				{"2018-11-03T23:10:00-03:00", "2018-11-03T23:10:15-03:00"},
+				{"2018-11-03T23:10:15-03:00", "2018-11-03T23:10:30-03:00"},
+				{"2018-11-03T23:10:30-03:00", "2018-11-03T23:10:45-03:00"},
+				{"2018-11-03T23:10:45-03:00", "2018-11-04T01:10:00-02:00"},
+				{"2018-11-04T01:10:45-02:00", "2018-11-04T02:10:00-02:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/Santiago, run daily",
+			expr:   "0 0 ? * *",
+			layout: time.RFC3339,
+			loc:    locationSantiago,
+			times: []crontimes{
+				// Move forward 1 hour on Sunday, 5 September 2021, 00:00 from UTC-4 to UTC-3
+				{"2021-09-03T00:00:00-04:00", "2021-09-04T00:00:00-04:00"},
+				{"2021-09-04T00:00:00-04:00", "2021-09-06T00:00:00-03:00"}, // skips 1 day
+				{"2021-09-05T01:00:00-03:00", "2021-09-06T00:00:00-03:00"},
+				{"2021-09-06T00:00:00-03:00", "2021-09-07T00:00:00-03:00"},
+				// Move backward 1 hour on Sunday, 3 April 2022, 00:00 from UTC-3 to UTC-4
+				// Assumes information from https://www.timeanddate.com/time/change/chile/santiago?year=2022
+				{"2022-03-31T00:00:00-03:00", "2022-04-01T00:00:00-03:00"},
+				{"2022-04-01T00:00:00-03:00", "2022-04-02T00:00:00-03:00"},
+				{"2022-04-02T00:00:00-03:00", "2022-04-03T00:00:00-04:00"}, // run later by 1h
+				{"2022-04-02T23:59:59-03:00", "2022-04-03T00:00:00-04:00"},
+				{"2022-04-02T23:00:00-04:00", "2022-04-03T00:00:00-04:00"},
+				{"2022-04-02T23:59:59-04:00", "2022-04-03T00:00:00-04:00"},
+				{"2022-04-03T00:00:00-04:00", "2022-04-04T00:00:00-04:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/Santiago, run daily at 1am",
+			expr:   "0 1 ? * *",
+			layout: time.RFC3339,
+			loc:    locationSantiago,
+			times: []crontimes{
+				// Move forward 1 hour on Sunday, 5 September 2021, 00:00 from UTC-4 to UTC-3
+				{"2021-09-03T01:00:00-04:00", "2021-09-04T01:00:00-04:00"},
+				{"2021-09-04T01:00:00-04:00", "2021-09-05T01:00:00-03:00"},
+				{"2021-09-05T01:00:00-03:00", "2021-09-06T01:00:00-03:00"},
+				{"2021-09-06T01:00:00-03:00", "2021-09-07T01:00:00-03:00"},
+				// Move backward 1 hour on Sunday, 3 April 2022, 00:00 from UTC-3 to UTC-4
+				{"2022-03-31T01:00:00-03:00", "2022-04-01T01:00:00-03:00"},
+				{"2022-04-01T01:00:00-03:00", "2022-04-02T01:00:00-03:00"},
+				{"2022-04-02T01:00:00-03:00", "2022-04-03T01:00:00-04:00"},
+				{"2022-04-03T01:00:00-04:00", "2022-04-04T01:00:00-04:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/Santiago, run on the 1st of each month at 12am",
+			expr:   "0 0 1 * *",
+			layout: time.RFC3339,
+			loc:    locationSantiago,
+			times: []crontimes{
+				// Move forward 1 hour on Sunday, 5 September 2021, 00:00 from UTC-4 to UTC-3
+				{"2021-08-01T00:00:00-04:00", "2021-09-01T00:00:00-04:00"},
+				{"2021-09-01T00:00:00-04:00", "2021-10-01T00:00:00-03:00"}, // skipped 1h
+				{"2021-10-01T00:00:00-03:00", "2021-11-01T00:00:00-03:00"},
+				// Move backward 1 hour on Sunday, 3 April 2022, 00:00 from UTC-3 to UTC-4
+				{"2022-03-01T00:00:00-03:00", "2022-04-01T00:00:00-03:00"},
+				{"2022-04-01T00:00:00-03:00", "2022-05-01T00:00:00-04:00"}, // added 1h
+				{"2022-05-01T00:00:00-04:00", "2022-06-01T00:00:00-04:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/New_York, run hourly",
+			expr:   "0 * ? * *",
+			layout: time.RFC3339,
+			loc:    locationNewYork,
+			times: []crontimes{
+				// Move forward 1 hour on 14 March 2021, 02:00 from UTC-5 to UTC-4
+				// Daylight savings changes are reversed in the Northern Hemisphere.
+				{"2021-03-13T23:00:00-05:00", "2021-03-14T00:00:00-05:00"},
+				{"2021-03-14T00:00:00-05:00", "2021-03-14T01:00:00-05:00"},
+				{"2021-03-14T01:00:00-05:00", "2021-03-14T03:00:00-04:00"},
+				{"2021-03-14T01:59:59-05:00", "2021-03-14T03:00:00-04:00"},
+				{"2021-03-14T03:00:00-04:00", "2021-03-14T04:00:00-04:00"},
+				// Move back 1 hour on 7 Nov 2021, 02:00 from UTC-4 to UTC-5
+				{"2021-11-06T23:00:00-04:00", "2021-11-07T00:00:00-04:00"},
+				{"2021-11-07T00:00:00-04:00", "2021-11-07T01:00:00-04:00"},
+				{"2021-11-07T01:00:00-04:00", "2021-11-07T01:00:00-05:00"},
+				{"2021-11-07T01:59:59-04:00", "2021-11-07T01:00:00-05:00"},
+				{"2021-11-07T01:00:00-05:00", "2021-11-07T02:00:00-05:00"},
+				{"2021-11-07T02:00:00-05:00", "2021-11-07T03:00:00-05:00"},
+				{"2021-11-07T03:00:00-05:00", "2021-11-07T04:00:00-05:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/New_York, run every 2 hours",
+			expr:   "0 0/2 ? * *",
+			layout: time.RFC3339,
+			loc:    locationNewYork,
+			times: []crontimes{
+				// Move forward 1 hour on 14 March 2021, 02:00 from UTC-5 to UTC-4
+				{"2021-03-13T23:00:00-05:00", "2021-03-14T00:00:00-05:00"},
+				{"2021-03-14T00:00:00-05:00", "2021-03-14T04:00:00-04:00"}, // 2am doesn't exist
+				{"2021-03-14T01:00:00-05:00", "2021-03-14T04:00:00-04:00"},
+				{"2021-03-14T03:00:00-04:00", "2021-03-14T04:00:00-04:00"},
+				{"2021-03-14T04:00:00-04:00", "2021-03-14T06:00:00-04:00"},
+				// Move back 1 hour on 7 Nov 2021, 02:00 from UTC-4 to UTC-5
+				{"2021-11-06T23:00:00-04:00", "2021-11-07T00:00:00-04:00"},
+				{"2021-11-07T00:00:00-04:00", "2021-11-07T02:00:00-05:00"},
+				{"2021-11-07T01:00:00-04:00", "2021-11-07T02:00:00-05:00"},
+				{"2021-11-07T01:00:00-05:00", "2021-11-07T02:00:00-05:00"},
+				{"2021-11-07T02:00:00-05:00", "2021-11-07T04:00:00-05:00"},
+				{"2021-11-07T03:00:00-05:00", "2021-11-07T04:00:00-05:00"},
+			},
+		},
+		{
+			name:   "Daylight Savings changeover for America/New_York, run every 2 hours on odd hours",
+			expr:   "0 1/2 ? * *",
+			layout: time.RFC3339,
+			loc:    locationNewYork,
+			times: []crontimes{
+				// Move forward 1 hour on 14 March 2021, 02:00 from UTC-5 to UTC-4
+				{"2021-03-13T23:00:00-05:00", "2021-03-14T01:00:00-05:00"},
+				{"2021-03-14T00:00:00-05:00", "2021-03-14T01:00:00-05:00"},
+				{"2021-03-14T01:00:00-05:00", "2021-03-14T03:00:00-04:00"}, // 2am doesn't exist
+				{"2021-03-14T03:00:00-04:00", "2021-03-14T05:00:00-04:00"},
+				// Move back 1 hour on 7 Nov 2021, 02:00 from UTC-4 to UTC-5
+				{"2021-11-06T23:00:00-04:00", "2021-11-07T01:00:00-04:00"},
+				{"2021-11-07T00:00:00-04:00", "2021-11-07T01:00:00-04:00"},
+				{"2021-11-07T01:00:00-04:00", "2021-11-07T01:00:00-05:00"},
+				{"2021-11-07T01:00:00-05:00", "2021-11-07T03:00:00-05:00"},
+				{"2021-11-07T02:00:00-05:00", "2021-11-07T03:00:00-05:00"},
+				{"2021-11-07T03:00:00-05:00", "2021-11-07T05:00:00-05:00"},
+			},
+		},
+		{
+			// In 2026, DST transition happens on November 1.
+			name:   "Daylight Savings changeover for America/New_York in 2026, run on the 1st of each month at 2am",
+			expr:   "0 2 1 * *",
+			layout: time.RFC3339,
+			loc:    locationNewYork,
+			times: []crontimes{
+				// Move forward 1 hour on March 8 2026, 02:00 from UTC-5 to UTC-4
+				{"2026-02-01T02:00:00-05:00", "2026-03-01T02:00:00-05:00"},
+				{"2026-03-01T02:00:00-05:00", "2026-04-01T02:00:00-04:00"}, // skipped 1h
+				{"2026-04-01T02:00:00-04:00", "2026-05-01T02:00:00-04:00"},
+				// Move back 1 hour on 7 Nov 2021, 02:00 from UTC-4 to UTC-5
+				{"2026-10-01T02:00:00-04:00", "2026-11-01T02:00:00-05:00"}, // added 1h
+				{"2026-11-01T00:00:00-04:00", "2026-11-01T02:00:00-05:00"},
+			},
+		},
+	}
+	for _, test := range crontests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			for _, times := range test.times {
+				loc := time.UTC
+				if test.loc != nil {
+					loc = test.loc
+				}
+				from, err := time.ParseInLocation(time.RFC3339, times.from, loc)
+				if err != nil {
+					t.Errorf(`Cannot parse %v`, times.from)
+					continue
+				}
+
+				expr, err := Parse(test.expr)
+				if err != nil {
+					t.Errorf(`Parse("%s") returned "%s"`, test.expr, err.Error())
+					continue
+				}
+				next := expr.Next(from)
+				nextstr := next.Format(test.layout)
+				if nextstr != times.next {
+					t.Errorf(`("%s").Next("%s") = "%s", got "%s"`, test.expr, times.from, times.next, nextstr)
+				}
+			}
+		})
+	}
+}
+
 // Issue: https://github.com/gorhill/cronexpr/issues/16
 func TestInterval_Interval60Issue(t *testing.T) {
 	_, err := Parse("*/60 * * * * *")
