@@ -47,8 +47,24 @@ The `W` character can be specified only when the day-of-month is a single day, n
 
 The `W` character can also be combined with `L`, i.e. `LW` to mean "the last business day of the month."
 
-#### Hash ( # )
+#### `#`
 `#` is allowed for the day-of-week field, and must be followed by a number between one and five. It allows you to specify constructs such as "the second Friday" of a given month.
+
+#### H
+
+`H` is used to denote a hash, supported only when using `WithHash`, which takes in an additional *Hash ID* that will be hashed using a deterministic non-cryptographic hash function, such that the ID will always be hashed to give the same value in place of `H`.
+
+If the cron expression contains a `H` symbol but no hash ID is provided, an error will be thrown during the ParseXX call.
+
+This behaviour is inspired from Jenkins-specific cron syntax. Quoted directly from their documentation <https://www.jenkins.io/doc/book/pipeline/syntax/#cron-syntax>:
+
+> To allow periodically scheduled tasks to produce even load on the system, the symbol `H` (for “hash”) should be used wherever possible. For example, using `0 0 * * *` for a dozen daily jobs will cause a large spike at midnight. In contrast, using `H H * * *` would still execute each job once a day, but not all at the same time, better using limited resources.
+>
+> The H symbol can be used with a range. For example, `H H(0-7) * * *` means some time between 12:00 AM (midnight) to 7:59 AM. You can also use step intervals with `H`, with or without ranges.
+>
+> The `H` symbol can be thought of as a random value over a range, but it actually is a hash of the job name, not a random function, so that the value remains stable for any given project.
+>
+> Beware that for the day of month field, short cycles such as `*/3` or `H/3` will not work consistently near the end of most months, due to variable month lengths. For example, `*/3` will run on the 1st, 4th, ... 31st days of a long month, then again the next day of the next month. Hashes are always chosen in the 1-28 range, so `H/3` will produce a gap between runs of between 3 and 6 days at the end of a month. (Longer cycles will also have inconsistent lengths but the effect may be relatively less noticeable.)
 
 Predefined cron expressions
 ---------------------------
@@ -69,6 +85,33 @@ Other details
 * If only five fields are present, a `0` second field is prepended and a wildcard year field is appended, that is, `* * * * Mon` internally become `0 * * * * Mon *`.
 * Domain for day-of-week field is [0-7] instead of [0-6], 7 being Sunday (like 0). This to comply with http://linux.die.net/man/5/crontab#.
 * As of now, the behavior of the code is undetermined if a malformed cron expression is supplied
+
+Parse Options
+-------------
+
+Available options:
+
+### `WithHash(hashID string)`
+
+Specifies the hash ID to hash, allows parsing of `H`.
+
+If option not specified, it will fail when trying to parse any expression containing `H`.
+
+### `WithHashEmptySeconds()`
+
+In the case when the seconds field is empty, it will interpret the missing field as `H` instead of `0`.
+
+Examples:
+
+- `Parse("H * * * *", WithHash(id))` will be parsed as `0 H * * * * *`
+- `Parse("H * * * *", WithHash(id), WithHashEmptySeconds())` will be parsed as `H H * * * * *`
+- `Parse("0 * * * *", WithHash(id), WithHashEmptySeconds())` will be parsed as `H 0 * * * * *`
+
+### `WithHashFields()`
+
+Using this parse option will introduce additional non-determinism into the hashed value. For example, given the following cron expression `H H * * * * *`, both the seconds and minutes place will always hash to the same value, such as 00:37:37, 01:37:37, etc.
+
+Using `WithHashFields()` appends a suffix with the field descriptor's name to introduce an additional key to hash, such that any two field descriptors with the same interval size do not always hash to the same value.
 
 Install
 -------

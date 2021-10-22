@@ -17,9 +17,10 @@ var (
 
 	quartzDowDescriptor = fieldDescriptor{
 		name:         "day-of-week",
-		min:          0,
-		max:          6,
-		defaultList:  genericDefaultList[0:7],
+		min:          1,
+		max:          7,
+		hashmax:      7,
+		defaultList:  genericDefaultList[1:7],
 		valuePattern: `0?[1-7]|sun|mon|tue|wed|thu|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday`,
 		atoi: func(s string) int {
 			return quartzDowTokens[s]
@@ -41,7 +42,7 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 	expr.specificWeekDaysOfWeek = make(map[int]bool)
 
 	// Use custom descriptor
-	directives, err := genericFieldParse(s, quartzDowDescriptor)
+	directives, err := genericFieldParse(s, quartzDowDescriptor, expr.hash)
 	if err != nil {
 		return err
 	}

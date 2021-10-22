@@ -112,6 +112,7 @@ func atoi(s string) int {
 type fieldDescriptor struct {
 	name         string
 	min, max     int
+	hashmax      int
 	defaultList  []int
 	valuePattern string
 	atoi         func(string) int
@@ -122,6 +123,7 @@ var (
 		name:         "second",
 		min:          0,
 		max:          59,
+		hashmax:      59,
 		defaultList:  genericDefaultList[0:60],
 		valuePattern: `0?[0-9]|[1-5][0-9]`,
 		atoi:         atoi,
@@ -130,6 +132,7 @@ var (
 		name:         "minute",
 		min:          0,
 		max:          59,
+		hashmax:      59,
 		defaultList:  genericDefaultList[0:60],
 		valuePattern: `0?[0-9]|[1-5][0-9]`,
 		atoi:         atoi,
@@ -138,6 +141,7 @@ var (
 		name:         "hour",
 		min:          0,
 		max:          23,
+		hashmax:      23,
 		defaultList:  genericDefaultList[0:24],
 		valuePattern: `0?[0-9]|1[0-9]|2[0-3]`,
 		atoi:         atoi,
@@ -149,11 +153,20 @@ var (
 		defaultList:  genericDefaultList[1:32],
 		valuePattern: `0?[1-9]|[12][0-9]|3[01]`,
 		atoi:         atoi,
+		// See https://www.jenkins.io/doc/book/pipeline/syntax/#cron-syntax:
+		// Beware that for the day of month field, short cycles such as */3 or H/3 will not work consistently
+		// near the end of most months, due to variable month lengths. For example, */3 will run on the
+		// 1st, 4th, … 31st days of a long month, then again the next day of the next month.
+		// Hashes are always chosen in the 1-28 range, so H/3 will produce a gap between runs of between 3 and 6
+		// days at the end of a month. (Longer cycles will also have inconsistent lengths but the effect may be
+		// relatively less noticeable.)
+		hashmax: 28,
 	}
 	monthDescriptor = fieldDescriptor{
 		name:         "month",
 		min:          1,
 		max:          12,
+		hashmax:      12,
 		defaultList:  genericDefaultList[1:13],
 		valuePattern: `0?[1-9]|1[012]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|march|april|june|july|august|september|october|november|december`,
 		atoi: func(s string) int {
@@ -164,6 +177,7 @@ var (
 		name:         "day-of-week",
 		min:          0,
 		max:          6,
+		hashmax:      6,
 		defaultList:  genericDefaultList[0:7],
 		valuePattern: `0?[0-7]|sun|mon|tue|wed|thu|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday`,
 		atoi: func(s string) int {
@@ -174,6 +188,7 @@ var (
 		name:         "year",
 		min:          1970,
 		max:          2099,
+		hashmax:      2099,
 		defaultList:  yearDefaultList[:],
 		valuePattern: `19[789][0-9]|20[0-9]{2}`,
 		atoi:         atoi,
@@ -184,6 +199,10 @@ var (
 
 var (
 	layoutWildcard            = `^\*{1,2}$|^\?{1,2}$`
+	layoutHashOnly            = `^h$`
+	layoutHashInterval        = `^h\/(\d+)$`
+	layoutHashRange           = `^h\((%value%)-(%value%)\)$`
+	layoutHashRangeInterval   = `^h\((%value%)-(%value%)\)/(\d+)$`
 	layoutValue               = `^(%value%)$`
 	layoutRange               = `^(%value%)-(%value%)$`
 	layoutJustInterval        = `^\/(\d+)$`
@@ -215,7 +234,7 @@ var cronNormalizer = strings.NewReplacer(
 
 func (expr *Expression) secondFieldHandler(s string) error {
 	var err error
-	expr.secondList, err = genericFieldHandler(s, secondDescriptor)
+	expr.secondList, err = genericFieldHandler(s, secondDescriptor, expr.hash)
 	return err
 }
 
@@ -223,7 +242,7 @@ func (expr *Expression) secondFieldHandler(s string) error {
 
 func (expr *Expression) minuteFieldHandler(s string) error {
 	var err error
-	expr.minuteList, err = genericFieldHandler(s, minuteDescriptor)
+	expr.minuteList, err = genericFieldHandler(s, minuteDescriptor, expr.hash)
 	return err
 }
 
@@ -231,7 +250,7 @@ func (expr *Expression) minuteFieldHandler(s string) error {
 
 func (expr *Expression) hourFieldHandler(s string) error {
 	var err error
-	expr.hourList, err = genericFieldHandler(s, hourDescriptor)
+	expr.hourList, err = genericFieldHandler(s, hourDescriptor, expr.hash)
 	return err
 }
 
@@ -239,7 +258,7 @@ func (expr *Expression) hourFieldHandler(s string) error {
 
 func (expr *Expression) monthFieldHandler(s string) error {
 	var err error
-	expr.monthList, err = genericFieldHandler(s, monthDescriptor)
+	expr.monthList, err = genericFieldHandler(s, monthDescriptor, expr.hash)
 	return err
 }
 
@@ -247,7 +266,7 @@ func (expr *Expression) monthFieldHandler(s string) error {
 
 func (expr *Expression) yearFieldHandler(s string) error {
 	var err error
-	expr.yearList, err = genericFieldHandler(s, yearDescriptor)
+	expr.yearList, err = genericFieldHandler(s, yearDescriptor, expr.hash)
 	return err
 }
 
@@ -269,8 +288,8 @@ type cronDirective struct {
 	send  int
 }
 
-func genericFieldHandler(s string, desc fieldDescriptor) ([]int, error) {
-	directives, err := genericFieldParse(s, desc)
+func genericFieldHandler(s string, desc fieldDescriptor, hash *hash) ([]int, error) {
+	directives, err := genericFieldParse(s, desc, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +315,7 @@ func (expr *Expression) dowFieldHandler(s string) error {
 	expr.lastWeekDaysOfWeek = make(map[int]bool)
 	expr.specificWeekDaysOfWeek = make(map[int]bool)
 
-	directives, err := genericFieldParse(s, dowDescriptor)
+	directives, err := genericFieldParse(s, dowDescriptor, expr.hash)
 	if err != nil {
 		return err
 	}
@@ -342,7 +361,7 @@ func (expr *Expression) domFieldHandler(s string) error {
 	expr.daysOfMonth = make(map[int]bool)     // days of month map
 	expr.workdaysOfMonth = make(map[int]bool) // work days of month map
 
-	directives, err := genericFieldParse(s, domDescriptor)
+	directives, err := genericFieldParse(s, domDescriptor, expr.hash)
 	if err != nil {
 		return err
 	}
@@ -406,7 +425,7 @@ func toList(set map[int]bool) []int {
 
 /******************************************************************************/
 
-func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error) {
+func genericFieldParse(s string, desc fieldDescriptor, hash *hash) ([]*cronDirective, error) {
 	// At least one entry must be present
 	indices := entryFinder.FindAllStringIndex(s, -1)
 	if len(indices) == 0 {
@@ -431,6 +450,16 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			directives = append(directives, &directive)
 			continue
 		}
+		// `H`
+		if makeLayoutRegexp(layoutHashOnly, desc.valuePattern).MatchString(snormal) {
+			if hash == nil {
+				return nil, makeErrorNoHashInput(snormal)
+			}
+			directive.kind = one
+			directive.first = hash.GetValueForField(desc.min, desc.hashmax, desc.name)
+			directives = append(directives, &directive)
+			continue
+		}
 		// `5`
 		if makeLayoutRegexp(layoutValue, desc.valuePattern).MatchString(snormal) {
 			directive.kind = one
@@ -445,6 +474,18 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			directive.first = desc.atoi(snormal[pairs[2]:pairs[3]])
 			directive.last = desc.atoi(snormal[pairs[4]:pairs[5]])
 			directive.step = 1
+			directives = append(directives, &directive)
+			continue
+		}
+		// `H(5-20)`
+		pairs = makeLayoutRegexp(layoutHashRange, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		if len(pairs) > 0 {
+			if hash == nil {
+				return nil, makeErrorNoHashInput(snormal)
+			}
+			directive.kind = one
+			directive.first = hash.GetValueForField(desc.atoi(snormal[pairs[2]:pairs[3]]),
+				desc.atoi(snormal[pairs[4]:pairs[5]]), desc.name)
 			directives = append(directives, &directive)
 			continue
 		}
@@ -487,6 +528,22 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			directives = append(directives, &directive)
 			continue
 		}
+		// `H/2`
+		pairs = makeLayoutRegexp(layoutHashInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		if len(pairs) > 0 {
+			if hash == nil {
+				return nil, makeErrorNoHashInput(snormal)
+			}
+			directive.kind = span
+			directive.last = desc.max
+			directive.step = atoi(snormal[pairs[2]:pairs[3]])
+			if directive.step < 1 || directive.step > desc.max {
+				return nil, fmt.Errorf("invalid interval %s", snormal)
+			}
+			directive.first = hash.GetValueForField(0, directive.step-1, desc.name)
+			directives = append(directives, &directive)
+			continue
+		}
 		// `5-20/2`
 		pairs = makeLayoutRegexp(layoutRangeAndInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
 		if len(pairs) > 0 {
@@ -497,6 +554,26 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			if directive.step < 1 || directive.step > desc.max {
 				return nil, fmt.Errorf("invalid interval %s", snormal)
 			}
+			directives = append(directives, &directive)
+			continue
+		}
+		// `H(5-20)/5`
+		// If in the minutes place, this means every 5 minutes within index 5-20 of the hour,
+		// but starting anywhere between 5-9, with a total of 3 times every hour.
+		pairs = makeLayoutRegexp(layoutHashRangeInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		if len(pairs) > 0 {
+			if hash == nil {
+				return nil, makeErrorNoHashInput(snormal)
+			}
+			directive.kind = span
+			directive.first = desc.atoi(snormal[pairs[2]:pairs[3]])
+			directive.last = desc.atoi(snormal[pairs[4]:pairs[5]])
+			directive.step = atoi(snormal[pairs[6]:pairs[7]])
+			if directive.step < 1 || directive.step > desc.max {
+				return nil, fmt.Errorf("invalid interval %s", snormal)
+			}
+			// Increase first by hash % step.
+			directive.first += hash.GetValueForField(0, directive.step-1, desc.name)
 			directives = append(directives, &directive)
 			continue
 		}

@@ -10,6 +10,7 @@ func TestFormattedExpressionsParsing(t *testing.T) {
 		name    string
 		format  CronFormat
 		expr    string
+		options []ParseOption
 		wantErr bool
 	}{
 		{
@@ -69,11 +70,49 @@ func TestFormattedExpressionsParsing(t *testing.T) {
 			expr:   "0 0 11 ? *",
 			format: CronFormatQuartz,
 		},
+		{
+			name:    "parsing H without hash",
+			format:  CronFormatStandard,
+			expr:    "0 H ? * *",
+			wantErr: true,
+		},
+		{
+			name:    "parsing H with hash",
+			format:  CronFormatStandard,
+			expr:    "0 H ? * *",
+			options: []ParseOption{WithHash("myid1")},
+		},
+		{
+			name:    "parsing H/2 with hash",
+			format:  CronFormatStandard,
+			expr:    "0 H/2 ? * *",
+			options: []ParseOption{WithHash("myid1")},
+		},
+		{
+			name:    "invalid H/80 for minute",
+			format:  CronFormatStandard,
+			expr:    "0 H/80 ? * *",
+			options: []ParseOption{WithHash("myid1")},
+			wantErr: true,
+		},
+		{
+			name:    "parsing H(5-20)/5 for minute",
+			format:  CronFormatStandard,
+			expr:    "0 H(5-20)/5 ? * *",
+			options: []ParseOption{WithHash("myid1")},
+		},
+		{
+			name:    "invalid H(80-90)/5 for minute",
+			format:  CronFormatStandard,
+			expr:    "0 H(80-90)/5 ? * *",
+			options: []ParseOption{WithHash("myid1")},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseForFormat(tt.format, tt.expr)
+			_, err := ParseForFormat(tt.format, tt.expr, tt.options...)
 			if err != nil && !tt.wantErr {
 				t.Errorf(`Parse("%s") returned "%s"`, tt.expr, err.Error())
 			} else if err == nil && tt.wantErr {
@@ -104,6 +143,30 @@ func TestFormattedExpressions(t *testing.T) {
 			format: CronFormatQuartz,
 			times: []crontimes{
 				{"2020-12-12 00:00:00", "2020-12-14 11:00:00"},
+			},
+		},
+		{
+			name:   "parsing 0 as day of week with CronFormatStandard",
+			expr:   "0 0 11 ? * 0 *", // interprets as sunday
+			format: CronFormatStandard,
+			times: []crontimes{
+				{"2021-09-01 00:00:00", "2021-09-05 11:00:00"},
+			},
+		},
+		{
+			name:   "parsing 7 as day of week with CronFormatStandard",
+			expr:   "0 0 11 ? * 7 *", // interprets as sunday, this is quite loose
+			format: CronFormatStandard,
+			times: []crontimes{
+				{"2021-09-01 00:00:00", "2021-09-05 11:00:00"},
+			},
+		},
+		{
+			name:   "parsing 7 as day of week with CronFormatQuartz",
+			expr:   "0 0 11 ? * 7 *", // interprets as saturday
+			format: CronFormatQuartz,
+			times: []crontimes{
+				{"2021-09-01 00:00:00", "2021-09-04 11:00:00"},
 			},
 		},
 		{

@@ -44,6 +44,13 @@ type Expression struct {
 	lastWeekDaysOfWeek     map[int]bool
 	daysOfWeekRestricted   bool
 	yearList               []int
+	hash                   *hash
+}
+
+// ParseOption allows for modular implementation of custom parsing options of an Expression.
+type ParseOption interface {
+	Apply(expr *Expression) error
+	GetPriority() int
 }
 
 /******************************************************************************/
@@ -73,8 +80,8 @@ func MustParse(cronLine string) *Expression {
 // See <https://github.com/gorhill/cronexpr#implementation> for documentation
 // about what is a well-formed cron expression from this library's point of
 // view.
-func ParseForFormat(format CronFormat, cronLine string) (*Expression, error) {
-
+// Accepts a custom CronFormat, which will control parsing behaviour based on the CronFormat's implementation.
+func ParseForFormat(format CronFormat, cronLine string, options ...ParseOption) (*Expression, error) {
 	// Maybe one of the built-in aliases is being used
 	cron := cronNormalizer.Replace(cronLine)
 
@@ -95,6 +102,18 @@ func ParseForFormat(format CronFormat, cronLine string) (*Expression, error) {
 	}
 	var field = 0
 
+	// Sort parse options by priority, smaller priority first.
+	sort.SliceStable(options, func(i, j int) bool {
+		return options[i].GetPriority() < options[j].GetPriority()
+	})
+
+	// Apply options to given expression.
+	for _, option := range options {
+		if err := option.Apply(expr.Expression); err != nil {
+			return nil, fmt.Errorf("apply option error: %v", err)
+		}
+	}
+
 	// second field (optional)
 	if fieldCount == 7 {
 		err = expr.secondFieldHandler(cron[indices[field][0]:indices[field][1]])
@@ -102,6 +121,11 @@ func ParseForFormat(format CronFormat, cronLine string) (*Expression, error) {
 			return nil, err
 		}
 		field += 1
+	} else if expr.hash != nil && expr.hash.hashEmptySeconds {
+		// Substitute the empty seconds field as `H` if both WithHash and WithHashEmptySeconds is used.
+		if err = expr.secondFieldHandler("H"); err != nil {
+			return nil, err
+		}
 	} else {
 		expr.secondList = []int{0}
 	}

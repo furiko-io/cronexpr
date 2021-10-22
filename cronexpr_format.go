@@ -32,6 +32,8 @@ type expressionHandler interface {
 	dowFieldHandler(s string) error
 }
 
+var _ expressionHandler = &Expression{}
+
 func newFormattedExpression(format CronFormat) (*formattedExpression, error) {
 	e := &formattedExpression{
 		Expression: &Expression{},
