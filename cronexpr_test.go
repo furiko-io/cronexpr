@@ -17,11 +17,13 @@ package cronexpr
 /******************************************************************************/
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -257,6 +259,87 @@ func TestZero(t *testing.T) {
 	next = MustParse("* * * * * 2099").Next(time.Time{})
 	if next.IsZero() == false {
 		t.Error(`("* * * * * 2014").Next(time.Time{}).IsZero() returned 'true', expected 'false'`)
+	}
+}
+
+/******************************************************************************/
+
+type crontestWithError struct {
+	crontest
+	err error
+}
+
+func TestInvalidExpr(t *testing.T) {
+	var tests = []crontestWithError{
+		{
+			crontest: crontest{
+				expr: "20-10 * * * *",
+			},
+			err: errors.New("beginning of range (20) beyond end of range (10): 20-10"),
+		},
+		{
+			crontest: crontest{
+				expr: "1-60 * * * *",
+			},
+			err: errors.New("syntax error in minute field: '1-60'"),
+		},
+		{
+			crontest: crontest{
+				expr: "* 10-5 * * *",
+			},
+			err: errors.New("beginning of range (10) beyond end of range (5): 10-5"),
+		},
+		{
+			crontest: crontest{
+				expr: "* 10-24 * * *",
+			},
+			err: errors.New("syntax error in hour field: '10-24'"),
+		},
+		{
+			crontest: crontest{
+				expr: "* * 0-10 * *",
+			},
+			err: errors.New("syntax error in day-of-month field: '0-10'"),
+		},
+		{
+			crontest: crontest{
+				expr: "* * 31-10 * *",
+			},
+			err: errors.New("beginning of range (31) beyond end of range (10): 31-10"),
+		},
+		{
+			crontest: crontest{
+				expr: "* * * 0-11 *",
+			},
+			err: errors.New("syntax error in month field: '0-11'"),
+		},
+		{
+			crontest: crontest{
+				expr: "* * * 11-5 *",
+			},
+			err: errors.New("beginning of range (11) beyond end of range (5): 11-5"),
+		},
+		{
+			crontest: crontest{
+				expr: "* * * * 1-8",
+			},
+			err: errors.New("syntax error in day-of-week field: '1-8'"),
+		},
+		{
+			crontest: crontest{
+				expr: "* * * * 5-2",
+			},
+			err: errors.New("beginning of range (5) beyond end of range (2): 5-2"),
+		},
+	}
+
+	for _, test := range tests {
+		{
+			_, err := Parse(test.expr)
+			if assert.Error(t, err) {
+				assert.Equal(t, test.err, err)
+			}
+		}
 	}
 }
 

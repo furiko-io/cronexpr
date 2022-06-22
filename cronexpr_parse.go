@@ -286,6 +286,26 @@ type cronDirective struct {
 	step  int
 	sbeg  int
 	send  int
+	item  string
+}
+
+// IsValid is checking if directive valid
+func (directive cronDirective) IsValid(min, max int) error {
+	if directive.kind == span {
+		if directive.first < min {
+			return fmt.Errorf("beginning of range (%d) below minimum (%d): %s",
+				directive.first, min, directive.item)
+		}
+		if directive.last > max {
+			return fmt.Errorf("end of range (%d) above maximum (%d): %s",
+				directive.last, max, directive.item)
+		}
+		if directive.first > directive.last {
+			return fmt.Errorf("beginning of range (%d) beyond end of range (%d): %s",
+				directive.first, directive.last, directive.item)
+		}
+	}
+	return nil
 }
 
 func genericFieldHandler(s string, desc fieldDescriptor, hash *hash) ([]int, error) {
@@ -295,6 +315,10 @@ func genericFieldHandler(s string, desc fieldDescriptor, hash *hash) ([]int, err
 	}
 	values := make(map[int]bool)
 	for _, directive := range directives {
+		// validate directive
+		if err := directive.IsValid(desc.min, desc.max); err != nil {
+			return nil, err
+		}
 		switch directive.kind {
 		case none:
 			return nil, fmt.Errorf("syntax error in %s field: '%s'", desc.name, s[directive.sbeg:directive.send])
@@ -345,6 +369,9 @@ func (expr *Expression) dowFieldHandler(s string) error {
 			if directive.last == 0 {
 				directive.last = 6
 			}
+			if err := directive.IsValid(dowDescriptor.min, dowDescriptor.max); err != nil {
+				return err
+			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 		case all:
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
@@ -367,6 +394,10 @@ func (expr *Expression) domFieldHandler(s string) error {
 	}
 
 	for _, directive := range directives {
+		// validate directive
+		if err := directive.IsValid(domDescriptor.min, domDescriptor.max); err != nil {
+			return err
+		}
 		switch directive.kind {
 		case none:
 			sdirective := s[directive.sbeg:directive.send]
@@ -440,6 +471,7 @@ func genericFieldParse(s string, desc fieldDescriptor, hash *hash) ([]*cronDirec
 			send: indices[i][1],
 		}
 		snormal := strings.ToLower(s[indices[i][0]:indices[i][1]])
+		directive.item = snormal
 
 		// `*`
 		if makeLayoutRegexp(layoutWildcard, desc.valuePattern).MatchString(snormal) {

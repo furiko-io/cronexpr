@@ -5,6 +5,8 @@ import (
 )
 
 var (
+	quartzDowMin    = 0 // minimum value of quartzDowTokens
+	quartzDowMax    = 6 // maximum value of quartzDowTokens
 	quartzDowTokens = map[string]int{
 		`1`: 0, `sun`: 0, `sunday`: 0,
 		`2`: 1, `mon`: 1, `monday`: 1,
@@ -49,6 +51,10 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 
 	for _, directive := range directives {
 		sdirective := s[directive.sbeg:directive.send]
+		// validate directive
+		if err := directive.IsValid(quartzDowMin, quartzDowMax); err != nil {
+			return err
+		}
 		switch directive.kind {
 		case none:
 			// not implemented.
