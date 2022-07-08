@@ -5,6 +5,8 @@ import (
 )
 
 var (
+	quartzDowMin    = 0 // minimum value of quartzDowTokens
+	quartzDowMax    = 6 // maximum value of quartzDowTokens
 	quartzDowTokens = map[string]int{
 		`1`: 0, `sun`: 0, `sunday`: 0,
 		`2`: 1, `mon`: 1, `monday`: 1,
@@ -17,9 +19,9 @@ var (
 
 	quartzDowDescriptor = fieldDescriptor{
 		name:         "day-of-week",
-		min:          1,
-		max:          7,
-		hashmax:      7,
+		min:          0,
+		max:          6,
+		hashmax:      6,
 		defaultList:  genericDefaultList[1:7],
 		valuePattern: `0?[1-7]|sun|mon|tue|wed|thu|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday`,
 		atoi: func(s string) int {
@@ -56,6 +58,14 @@ func (expr *quartzExpression) dowFieldHandler(s string) error {
 		case one:
 			populateOne(expr.daysOfWeek, directive.first)
 		case span:
+			// To properly handle spans that end in 7 (Sunday)
+			if directive.last == 0 {
+				directive.last = 6
+			}
+			// validate directive
+			if err := directive.IsValid(quartzDowMin, quartzDowMax); err != nil {
+				return err
+			}
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
 		case all:
 			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
