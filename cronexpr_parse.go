@@ -567,6 +567,7 @@ func genericFieldParse(s string, desc fieldDescriptor, hash *hash) ([]*cronDirec
 				return nil, makeErrorNoHashInput(snormal)
 			}
 			directive.kind = span
+			directive.first = desc.min
 			directive.last = desc.max
 			directive.step = atoi(snormal[pairs[2]:pairs[3]])
 			if directive.step < 1 || directive.step > desc.max {
