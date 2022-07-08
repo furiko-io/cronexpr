@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func ExampleHashString() {
@@ -414,10 +412,4 @@ func TestHashExpressions(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestParse(t *testing.T) {
-	opts := []ParseOption{WithHash("hashID01")}
-	_, err := ParseForFormat(CronFormatQuartz, "0 0 0 1 1 H/7 *", opts...)
-	assert.Error(t, err, "invalid interval h/7")
 }

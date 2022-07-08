@@ -108,6 +108,20 @@ func TestFormattedExpressionsParsing(t *testing.T) {
 			options: []ParseOption{WithHash("myid1")},
 			wantErr: true,
 		},
+		{
+			name:    "invalid H/7 for DOW",
+			format:  CronFormatStandard,
+			expr:    "0 0 0 1 1 H/7 *",
+			options: []ParseOption{WithHash("myid1")},
+			wantErr: true,
+		},
+		{
+			name:    "invalid H/7 for DOW with CronFormatQuartz",
+			format:  CronFormatQuartz,
+			expr:    "0 0 0 1 1 H/7 *",
+			options: []ParseOption{WithHash("myid1")},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
